@@ -481,6 +481,57 @@ ADMIN_HTML = """
 </div>
 
 <div class="form-box">
+    <h3>用户搜索 / 到期提醒</h3>
+    <form method="get" action="/admin">
+        关键词：<input name="q" value="{{ q }}" placeholder="账号 / 机器码 / 状态">
+        用户状态：
+        <select name="status">
+            <option value="" {% if status == "" %}selected{% endif %}>全部</option>
+            <option value="active" {% if status == "active" %}selected{% endif %}>正常</option>
+            <option value="banned" {% if status == "banned" %}selected{% endif %}>封禁</option>
+        </select>
+        到期筛选：
+        <select name="expire_filter">
+            <option value="" {% if expire_filter == "" %}selected{% endif %}>全部</option>
+            <option value="valid" {% if expire_filter == "valid" %}selected{% endif %}>有效会员</option>
+            <option value="expired" {% if expire_filter == "expired" %}selected{% endif %}>已过期/未充值</option>
+            <option value="soon7" {% if expire_filter == "soon7" %}selected{% endif %}>7天内到期</option>
+            <option value="soon3" {% if expire_filter == "soon3" %}selected{% endif %}>3天内到期</option>
+        </select>
+        <button type="submit">搜索</button>
+        <a href="/admin">清空筛选</a>
+    </form>
+    <div class="small">提示：可以搜索账号、机器码、active、banned。到期提醒适合你主动提醒用户续费。</div>
+</div>
+
+<div class="form-box">
+    <h3>即将到期会员提醒</h3>
+    {% if expiring_users %}
+        <table>
+            <tr>
+                <th>账号</th>
+                <th>到期时间</th>
+                <th>机器码</th>
+                <th>操作</th>
+            </tr>
+            {% for u in expiring_users %}
+            <tr>
+                <td>{{ u.username }}</td>
+                <td>{{ u.expire_at }}</td>
+                <td>{{ u.device_id if u.device_id else "未绑定" }}</td>
+                <td>
+                    <a href="/admin/renew_user?username={{ u.username }}&days=30&price=30">续费30天并记收入30</a>
+                    <a href="/admin/renew_user?username={{ u.username }}&days=30&price=0">免费补偿30天</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </table>
+    {% else %}
+        <div class="small">暂无7天内到期会员。</div>
+    {% endif %}
+</div>
+
+<div class="form-box">
     <h3>批量生成卡密</h3>
     <form method="post" action="/admin/create_card">
         数量：<input name="count" value="1" style="width:60px;">
@@ -502,7 +553,7 @@ ADMIN_HTML = """
     <div class="small">说明：如果是补偿用户，金额填0；如果是人工收款续费，金额填30。</div>
 </div>
 
-<h3>用户列表</h3>
+<h3>用户列表{% if q or status or expire_filter %}（筛选结果）{% endif %}</h3>
 <table>
 <tr>
     <th>ID</th>
@@ -638,9 +689,51 @@ def admin_index():
     if not require_admin():
         return redirect("/admin/login")
 
+    q = request.args.get("q", "").strip()
+    status = request.args.get("status", "").strip()
+    expire_filter = request.args.get("expire_filter", "").strip()
+
     conn = get_conn()
 
-    users = conn.execute("SELECT * FROM users ORDER BY id DESC").fetchall()
+    now = now_str()
+    now_dt = datetime.datetime.now()
+    soon7 = (now_dt + datetime.timedelta(days=7)).strftime("%Y-%m-%d %H:%M:%S")
+    soon3 = (now_dt + datetime.timedelta(days=3)).strftime("%Y-%m-%d %H:%M:%S")
+
+    user_sql = "SELECT * FROM users WHERE 1=1"
+    params = []
+
+    if q:
+        user_sql += " AND (username LIKE ? OR device_id LIKE ? OR status LIKE ?)"
+        like_q = f"%{q}%"
+        params.extend([like_q, like_q, like_q])
+
+    if status:
+        user_sql += " AND status = ?"
+        params.append(status)
+
+    if expire_filter == "valid":
+        user_sql += " AND expire_at != '' AND expire_at > ? AND status = 'active'"
+        params.append(now)
+    elif expire_filter == "expired":
+        user_sql += " AND (expire_at = '' OR expire_at <= ? OR status != 'active')"
+        params.append(now)
+    elif expire_filter == "soon7":
+        user_sql += " AND expire_at != '' AND expire_at > ? AND expire_at <= ? AND status = 'active'"
+        params.extend([now, soon7])
+    elif expire_filter == "soon3":
+        user_sql += " AND expire_at != '' AND expire_at > ? AND expire_at <= ? AND status = 'active'"
+        params.extend([now, soon3])
+
+    user_sql += " ORDER BY id DESC"
+
+    users = conn.execute(user_sql, params).fetchall()
+
+    expiring_users = conn.execute(
+        "SELECT * FROM users WHERE expire_at != '' AND expire_at > ? AND expire_at <= ? AND status = 'active' ORDER BY expire_at ASC LIMIT 50",
+        (now, soon7)
+    ).fetchall()
+
     cards = conn.execute("SELECT * FROM cards ORDER BY id DESC LIMIT 300").fetchall()
     orders = conn.execute("SELECT * FROM orders ORDER BY id DESC LIMIT 100").fetchall()
 
@@ -648,7 +741,6 @@ def admin_index():
     used_cards = conn.execute("SELECT COUNT(*) AS n FROM cards WHERE used = 1").fetchone()["n"]
     user_count = conn.execute("SELECT COUNT(*) AS n FROM users").fetchone()["n"]
 
-    now = now_str()
     active_user_count = conn.execute(
         "SELECT COUNT(*) AS n FROM users WHERE expire_at != '' AND expire_at > ? AND status = 'active'",
         (now,)
@@ -678,6 +770,10 @@ def admin_index():
         users=users,
         cards=cards,
         orders=orders,
+        expiring_users=expiring_users,
+        q=q,
+        status=status,
+        expire_filter=expire_filter,
         now=now,
         total_cards=total_cards,
         used_cards=used_cards,
@@ -688,7 +784,6 @@ def admin_index():
         today_income=today_income,
         month_income=month_income
     )
-
 
 # ================== 管理员：批量生成卡密 ==================
 @app.route("/admin/create_card", methods=["GET", "POST"])
