@@ -61,9 +61,7 @@ def init_db():
     conn = get_conn()
     cur = conn.cursor()
 
-    cur.execute("DROP TABLE IF EXISTS users")
-    cur.execute("DROP TABLE IF EXISTS cards")
-    cur.execute("DROP TABLE IF EXISTS orders")
+
 
     cur.execute("""
     CREATE TABLE IF NOT EXISTS users (
