@@ -14,8 +14,8 @@ app = Flask(__name__)
 DATABASE_URL = os.environ.get("DATABASE_URL")
 app.secret_key = os.environ.get("SECRET_KEY", "MHXY_ADMIN_2026_SECRET")
 
-ADMIN_USER = os.environ.get("ADMIN_USER", "admin")
-ADMIN_PWD = os.environ.get("ADMIN_PWD", "admin123")
+ADMIN_USER = os.environ.get("ADMIN_USER", "huyili")
+ADMIN_PWD = os.environ.get("ADMIN_PWD", "huyili10")
 
 
 # ================== 工具函数 ==================
@@ -501,10 +501,10 @@ ADMIN_HTML = """
     <div class="sidebar">
         <div class="logo">梦幻工具箱</div>
         <div class="subtitle">专业授权管理后台</div>
-        <div class="nav-item">📊 数据总览</div>
-        <div class="nav-item">👤 用户管理</div>
-        <div class="nav-item">🎫 卡密管理</div>
-        <div class="nav-item">💰 订单统计</div>
+        <a href="#dashboard" class="nav-item">📊 数据总览</a>
+        <a href="#users" class="nav-item">👤 用户管理</a>
+        <a href="#cards" class="nav-item">🎫 卡密管理</a>
+        <a href="#orders" class="nav-item">💰 订单统计</a>
     </div>
 
     <div class="main">
@@ -517,7 +517,7 @@ ADMIN_HTML = """
             </div>
         </div>
 
-        <div class="cards">
+        <div id="dashboard" class="cards">
             <div class="card"><div class="card-title">用户总数</div><div class="num">{{ user_count }}</div></div>
             <div class="card"><div class="card-title">有效会员</div><div class="num">{{ active_user_count }}</div></div>
             <div class="card"><div class="card-title">卡密总数</div><div class="num">{{ total_cards }}</div></div>
@@ -594,7 +594,7 @@ ADMIN_HTML = """
             </form>
         </div>
 
-        <h3>用户列表{% if q or status or expire_filter %}（筛选结果）{% endif %}</h3>
+        <h3 id="users">用户列表{% if q or status or expire_filter %}（筛选结果）{% endif %}</h3>
         <table>
             <tr>
                 <th>ID</th><th>账号</th><th>到期时间</th><th>会员状态</th><th>账号状态</th><th>机器码</th><th>注册时间</th><th>操作</th>
@@ -628,7 +628,7 @@ ADMIN_HTML = """
             {% endfor %}
         </table>
 
-        <h3>卡密列表</h3>
+        <h3 id="cards">卡密列表</h3>
         <table>
             <tr>
                 <th>ID</th><th>卡密</th><th>天数</th><th>金额</th><th>是否使用</th><th>使用者</th><th>使用时间</th><th>创建时间</th><th>操作</th>
@@ -651,7 +651,7 @@ ADMIN_HTML = """
             {% endfor %}
         </table>
 
-        <h3>最近100条订单记录</h3>
+        <h3 id="orders">最近100条订单记录</h3>
         <table>
             <tr>
                 <th>ID</th><th>账号</th><th>卡密/来源</th><th>天数</th><th>金额</th><th>旧到期时间</th><th>新到期时间</th><th>充值时间</th>
