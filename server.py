@@ -384,11 +384,17 @@ ADMIN_HTML = """
             margin-bottom: 30px;
         }
         .nav-item {
-            padding: 12px 14px;
-            border-radius: 10px;
-            margin-bottom: 8px;
-            background: rgba(255,255,255,0.08);
-        }
+    display: block;
+    padding: 12px 14px;
+    border-radius: 10px;
+    margin-bottom: 8px;
+    background: rgba(255,255,255,0.08);
+    color: white;
+    text-decoration: none;
+}
+.nav-item:hover {
+    background: rgba(255,255,255,0.16);
+}
         .main {
             flex: 1;
             padding: 24px;
